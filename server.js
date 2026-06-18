@@ -16,30 +16,40 @@ const USER = {
   password: "1234"
 };
 
+// HOME
 app.get("/", (req, res) => {
-  res.send("<h1>Home</h1><a href='/login'>Login</a>");
+  res.send(`
+    <h1>Home Page</h1>
+    <a href="/login">Login</a>
+  `);
 });
 
+// LOGIN PAGE
 app.get("/login", (req, res) => {
   res.send(`
+    <h2>Login</h2>
     <form method="POST" action="/login">
       <input name="username" placeholder="Username" />
       <input name="password" type="password" placeholder="Password" />
-      <button>Login</button>
+      <button type="submit">Login</button>
     </form>
   `);
 });
 
+// LOGIN CHECK
 app.post("/login", (req, res) => {
   const { username, password } = req.body;
 
   if (username === USER.username && password === USER.password) {
-    return res.send("LOGIN SUCCESS 🚀");
+    return res.send("<h1>LOGIN SUCCESS 🚀</h1>");
   }
 
   res.send("WRONG LOGIN ❌");
 });
 
-app.listen(3000, () => {
-  console.log("Server running");
+// PORT FIX (Railway üçün vacibdir)
+const PORT = process.env.PORT || 3000;
+
+app.listen(PORT, () => {
+  console.log("Server running on port " + PORT);
 });
