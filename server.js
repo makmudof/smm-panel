@@ -15,7 +15,7 @@ app.use(session({
 
 /* ================= DATABASE ================= */
 
-mongoose.connect("MONGO_URL_BURAYA_YAZ");
+mongoose.connect("mongodb+srv://makmudof_db_user:SENIN_SIFREN@smm-panel.k76emoz.mongodb.net/?retryWrites=true&w=majority");
 
 const User = mongoose.model("User", {
   username: String,
