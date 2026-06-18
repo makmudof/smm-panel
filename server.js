@@ -13,28 +13,30 @@ app.use(session({
 
 const USER = { username: "admin", password: "1234" };
 
-// fake balance
+// balans
 let balance = 50;
 
-// HOME
+// ANA SƏHİFƏ
 app.get("/", (req, res) => {
   res.send(`
-    <h1>SMM Panel Dashboard</h1>
-    <a href="/login">Login</a>
+    <h1>SMM Panel</h1>
+    <a href="/login">Giriş et</a>
   `);
 });
 
-// LOGIN
+// LOGIN SƏHİFƏSİ
 app.get("/login", (req, res) => {
   res.send(`
+    <h2>Giriş</h2>
     <form method="POST" action="/login">
-      <input name="username" placeholder="Username" />
-      <input name="password" type="password" placeholder="Password" />
-      <button>Login</button>
+      <input name="username" placeholder="İstifadəçi adı" />
+      <input name="password" type="password" placeholder="Şifrə" />
+      <button>Giriş et</button>
     </form>
   `);
 });
 
+// LOGIN YOXLAMA
 app.post("/login", (req, res) => {
   const { username, password } = req.body;
 
@@ -43,7 +45,7 @@ app.post("/login", (req, res) => {
     return res.redirect("/dashboard");
   }
 
-  res.send("Login failed ❌");
+  res.send("Giriş səhvdir ❌");
 });
 
 // DASHBOARD
@@ -51,39 +53,42 @@ app.get("/dashboard", (req, res) => {
   if (!req.session.auth) return res.redirect("/login");
 
   res.send(`
-    <h1>Dashboard 🚀</h1>
-    <p>Balance: $${balance}</p>
+    <h1>Panel 🚀</h1>
+    <p>Balans: $${balance}</p>
 
     <form method="POST" action="/order">
-      <input name="service" placeholder="Service (instagram ads, design...)" />
-      <input name="amount" placeholder="Amount" />
-      <button>Order</button>
+      <input name="service" placeholder="Xidmət (reklam, dizayn...)" />
+      <input name="amount" placeholder="Miqdar" />
+      <button>Sifariş et</button>
     </form>
 
-    <a href="/logout">Logout</a>
+    <a href="/logout">Çıxış</a>
   `);
 });
 
-// ORDER SYSTEM
+// SİFARİŞ
 app.post("/order", (req, res) => {
   if (!req.session.auth) return res.redirect("/login");
 
   const { service, amount } = req.body;
 
   res.send(`
-    <h2>Order received ✔️</h2>
-    <p>Service: ${service}</p>
-    <p>Amount: ${amount}</p>
-    <a href="/dashboard">Back</a>
+    <h2>Sifariş qəbul edildi ✔️</h2>
+    <p>Xidmət: ${service}</p>
+    <p>Miqdar: ${amount}</p>
+    <a href="/dashboard">Geri</a>
   `);
 });
 
-// LOGOUT
+// ÇIXIŞ
 app.get("/logout", (req, res) => {
   req.session.destroy();
   res.redirect("/");
 });
 
-// PORT
+// PORT (Railway üçün vacib)
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log("Running on " + PORT));
+
+app.listen(PORT, () => {
+  console.log("Server işləyir: " + PORT);
+});
