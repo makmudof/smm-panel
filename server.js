@@ -1,135 +1,217 @@
 const express = require("express");
 const session = require("express-session");
+const mongoose = require("mongoose");
+const bcrypt = require("bcryptjs");
 
 const app = express();
 
 app.use(express.urlencoded({ extended: true }));
 
 app.use(session({
-  secret: "manual-panel",
+  secret: "az-smm-panel",
   resave: false,
   saveUninitialized: false
 }));
 
-const USER = { username: "admin", password: "1234" };
+/* ================= DATABASE ================= */
 
-// USER BALANCE
-let balance = 0;
+mongoose.connect("MONGO_URL_BURAYA_YAZ");
 
-// PENDING TOPUPS (admin təsdiq üçün)
-let pendingTopups = [];
-
-// HOME
-app.get("/", (req, res) => {
-  res.send(`
-    <h1>SMM Panel</h1>
-    <a href="/login">Giriş</a>
-  `);
+const User = mongoose.model("User", {
+  username: String,
+  password: String,
+  balance: { type: Number, default: 0 },
+  isAdmin: { type: Boolean, default: false }
 });
 
-// LOGIN
-app.get("/login", (req, res) => {
-  res.send(`
-    <form method="POST" action="/login">
-      <input name="username" placeholder="İstifadəçi adı" />
-      <input name="password" type="password" placeholder="Şifrə" />
-      <button>Giriş</button>
-    </form>
-  `);
+const Order = mongoose.model("Order", {
+  user: String,
+  service: String,
+  link: String,
+  qty: Number,
+  status: { type: String, default: "gözləyir" }
 });
 
-app.post("/login", (req, res) => {
-  const { username, password } = req.body;
+/* ================= DİZAYN (ORTADA) ================= */
 
-  if (username === USER.username && password === USER.password) {
-    req.session.auth = true;
-    return res.redirect("/dashboard");
-  }
+const style = `
+<style>
+body{
+  margin:0;
+  font-family:Arial;
+  background:#0f172a;
+  color:#fff;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  min-height:100vh;
+}
 
-  res.send("Giriş səhvdir ❌");
+.container{
+  width:100%;
+  display:flex;
+  justify-content:center;
+}
+
+.card{
+  background:#1e293b;
+  padding:20px;
+  border-radius:12px;
+  width:360px;
+  text-align:center;
+  box-shadow:0 10px 25px rgba(0,0,0,0.4);
+}
+
+input,button{
+  width:90%;
+  padding:10px;
+  margin:6px 0;
+  border-radius:8px;
+  border:none;
+}
+
+button{
+  background:#3b82f6;
+  color:#fff;
+  cursor:pointer;
+}
+
+a{color:#38bdf8;text-decoration:none}
+</style>
+`;
+
+/* ================= HOME ================= */
+
+app.get("/", (req,res)=>{
+  res.send(style+`
+  <div class="container">
+    <div class="card">
+      <h2>🚀 SMM Panel</h2>
+      <p>Xoş gəldiniz</p>
+      <a href="/register">Qeydiyyat</a><br><br>
+      <a href="/login">Giriş</a>
+    </div>
+  </div>`);
 });
 
-// DASHBOARD
-app.get("/dashboard", (req, res) => {
-  if (!req.session.auth) return res.redirect("/login");
+/* ================= REGISTER ================= */
 
-  res.send(`
-    <h1>Panel 🚀</h1>
-    <p>Balans: ${balance} AZN</p>
-
-    <form method="POST" action="/topup">
-      <input name="amount" placeholder="Balans artır (AZN)" />
-      <button>Göndər</button>
-    </form>
-
-    <a href="/logout">Çıxış</a>
-  `);
+app.get("/register",(req,res)=>{
+  res.send(style+`
+  <div class="container">
+    <div class="card">
+      <h2>Qeydiyyat</h2>
+      <form method="POST" action="/register">
+        <input name="username" placeholder="İstifadəçi adı"/>
+        <input name="password" type="password" placeholder="Şifrə"/>
+        <button>Yarat</button>
+      </form>
+    </div>
+  </div>`);
 });
 
-// TOPUP REQUEST (USER)
-app.post("/topup", (req, res) => {
-  if (!req.session.auth) return res.redirect("/login");
+app.post("/register", async (req,res)=>{
+  const hash = await bcrypt.hash(req.body.password,10);
 
-  const amount = Number(req.body.amount);
-
-  if (!amount || amount <= 0) {
-    return res.send("Yanlış məbləğ ❌");
-  }
-
-  pendingTopups.push({
-    user: USER.username,
-    amount: amount
+  await User.create({
+    username:req.body.username,
+    password:hash,
+    balance:0,
+    isAdmin:false
   });
 
-  res.send(`
-    <h2>Sorğu göndərildi ✔️</h2>
-    <p>Admin təsdiq edəndən sonra balans artacaq</p>
-    <a href="/dashboard">Geri</a>
-  `);
+  res.redirect("/login");
 });
 
-// ADMIN PANEL
-app.get("/admin", (req, res) => {
-  if (!req.session.auth) return res.send("Access denied ❌");
+/* ================= LOGIN ================= */
 
-  let list = pendingTopups.map((t, i) => `
-    <li>
-      ${t.user} - ${t.amount} AZN
-      <a href="/approve/${i}">Təsdiq et</a>
-    </li>
-  `).join("");
-
-  res.send(`
-    <h1>Admin Panel</h1>
-    <ul>${list}</ul>
-    <a href="/dashboard">User panel</a>
-  `);
+app.get("/login",(req,res)=>{
+  res.send(style+`
+  <div class="container">
+    <div class="card">
+      <h2>Giriş</h2>
+      <form method="POST" action="/login">
+        <input name="username" placeholder="İstifadəçi adı"/>
+        <input name="password" type="password" placeholder="Şifrə"/>
+        <button>Daxil ol</button>
+      </form>
+    </div>
+  </div>`);
 });
 
-// APPROVE TOPUP
-app.get("/approve/:id", (req, res) => {
-  const id = req.params.id;
+app.post("/login", async (req,res)=>{
+  const user = await User.findOne({ username:req.body.username });
 
-  const item = pendingTopups[id];
+  if(!user) return res.send("İstifadəçi tapılmadı ❌");
 
-  if (!item) return res.send("Tapılmadı");
+  const ok = await bcrypt.compare(req.body.password, user.password);
+  if(!ok) return res.send("Şifrə səhvdir ❌");
 
-  balance += item.amount;
-
-  pendingTopups.splice(id, 1);
-
-  res.send(`
-    <h2>Təsdiq edildi ✔️</h2>
-    <a href="/admin">Geri</a>
-  `);
+  req.session.user = user;
+  res.redirect("/panel");
 });
 
-// LOGOUT
-app.get("/logout", (req, res) => {
+/* ================= PANEL ================= */
+
+app.get("/panel",(req,res)=>{
+  if(!req.session.user) return res.redirect("/login");
+
+  const u = req.session.user;
+
+  res.send(style+`
+  <div class="container">
+    <div class="card">
+
+      <h2>📊 Panel</h2>
+      <p>👤 ${u.username}</p>
+      <p>💰 Balans: ${u.balance} AZN</p>
+
+      <hr>
+
+      <h3>Sifariş yarat</h3>
+      <form method="POST" action="/order">
+        <input name="service" placeholder="Xidmət"/>
+        <input name="link" placeholder="Link"/>
+        <input name="qty" placeholder="Miqdar"/>
+        <button>Sifariş et</button>
+      </form>
+
+      <br>
+      <a href="/logout">Çıxış</a>
+
+    </div>
+  </div>`);
+});
+
+/* ================= ORDER ================= */
+
+app.post("/order", async (req,res)=>{
+  await Order.create({
+    user:req.session.user.username,
+    service:req.body.service,
+    link:req.body.link,
+    qty:req.body.qty
+  });
+
+  res.send(style+`
+  <div class="container">
+    <div class="card">
+      ✔ Sifariş göndərildi
+      <br><br>
+      <a href="/panel">Geri</a>
+    </div>
+  </div>`);
+});
+
+/* ================= LOGOUT ================= */
+
+app.get("/logout",(req,res)=>{
   req.session.destroy();
   res.redirect("/");
 });
 
-// PORT
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log("Running on " + PORT));
+/* ================= START ================= */
+
+app.listen(3000,()=>{
+  console.log("SMM Panel işləyir 🚀");
+});
